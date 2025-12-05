@@ -2,13 +2,9 @@ package ru.yandex.practicum.telemetry.collector.service.handler.hub;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.grpc.telemetry.event.HubEventProto;
 import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.telemetry.collector.config.KafkaConfig;
-import ru.yandex.practicum.telemetry.collector.model.enums.HubEventType;
-import ru.yandex.practicum.telemetry.collector.model.hub.AbstractHubEvent;
-import ru.yandex.practicum.telemetry.collector.model.hub.ScenarioAddedEvent;
-import ru.yandex.practicum.telemetry.collector.model.scenario.DeviceAction;
-import ru.yandex.practicum.telemetry.collector.model.scenario.ScenarioCondition;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,14 +18,14 @@ public class ScenarioAddedEventHandler extends AbstractHubEventHandler<ScenarioA
     }
 
     @Override
-    public ScenarioAddedEventAvro mapToHubEventAvro(AbstractHubEvent hubEvent) {
-        ScenarioAddedEvent event = (ScenarioAddedEvent) hubEvent;
+    public ScenarioAddedEventAvro mapToHubEventAvro(HubEventProto hubEvent) {
+        var event = hubEvent.getScenarioAdded();
 
-        List<ScenarioConditionAvro> conditions = event.getConditions().stream()
+        List<ScenarioConditionAvro> conditions = event.getConditionList().stream()
                 .map(this::convertCondition)
                 .collect(Collectors.toList());
 
-        List<DeviceActionAvro> actions = event.getActions().stream()
+        List<DeviceActionAvro> actions = event.getActionList().stream()
                 .map(this::convertAction)
                 .collect(Collectors.toList());
 
@@ -40,19 +36,16 @@ public class ScenarioAddedEventHandler extends AbstractHubEventHandler<ScenarioA
                 .build();
     }
 
-    private ScenarioConditionAvro convertCondition(ScenarioCondition condition) {
+    private ScenarioConditionAvro convertCondition(ru.yandex.practicum.grpc.telemetry.event.ScenarioConditionProto condition) {
         ScenarioConditionAvro.Builder builder = ScenarioConditionAvro.newBuilder()
                 .setSensorId(condition.getSensorId())
                 .setType(ConditionTypeAvro.valueOf(condition.getType().name()))
                 .setOperation(ConditionOperationAvro.valueOf(condition.getOperation().name()));
 
-        if (condition.getValue() != null) {
-            if (condition.getType() == ru.yandex.practicum.telemetry.collector.model.enums.ConditionType.MOTION ||
-                    condition.getType() == ru.yandex.practicum.telemetry.collector.model.enums.ConditionType.SWITCH) {
-                builder.setValue(condition.getValue() != 0);
-            } else {
-                builder.setValue(condition.getValue());
-            }
+        if (condition.hasBoolValue()) {
+            builder.setValue(condition.getBoolValue());
+        } else if (condition.hasIntValue()) {
+            builder.setValue(condition.getIntValue());
         } else {
             builder.setValue(null);
         }
@@ -60,12 +53,12 @@ public class ScenarioAddedEventHandler extends AbstractHubEventHandler<ScenarioA
         return builder.build();
     }
 
-    private DeviceActionAvro convertAction(DeviceAction action) {
+    private DeviceActionAvro convertAction(ru.yandex.practicum.grpc.telemetry.event.DeviceActionProto action) {
         DeviceActionAvro.Builder builder = DeviceActionAvro.newBuilder()
                 .setSensorId(action.getSensorId())
                 .setType(ActionTypeAvro.valueOf(action.getType().name()));
 
-        if (action.getValue() != null) {
+        if (action.hasValue()) {
             builder.setValue(action.getValue());
         } else {
             builder.setValue(null);
@@ -75,7 +68,7 @@ public class ScenarioAddedEventHandler extends AbstractHubEventHandler<ScenarioA
     }
 
     @Override
-    public HubEventType getHubEventType() {
-        return HubEventType.SCENARIO_ADDED;
+    public HubEventProto.PayloadCase getHubEventType() {
+        return HubEventProto.PayloadCase.SCENARIO_ADDED;
     }
 }

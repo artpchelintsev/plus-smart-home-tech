@@ -5,9 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import ru.yandex.practicum.grpc.telemetry.event.SensorEventProto;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.telemetry.collector.config.KafkaConfig;
-import ru.yandex.practicum.telemetry.collector.model.sensor.AbstractSensorEvent;
+
+import java.time.Instant;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -17,14 +19,14 @@ public abstract class AbstractSensorEventHandler<T extends SpecificRecordBase> i
     private final String topic;
 
     @Override
-    public void handle(AbstractSensorEvent sensorEvent) {
+    public void handle(SensorEventProto sensorEvent) {
         try {
             Producer<String, SpecificRecordBase> producer = kafkaConfig.getProducer();
             T specificAvroEvent = mapToSensorEventAvro(sensorEvent);
             SensorEventAvro avroEvent = SensorEventAvro.newBuilder()
                     .setId(sensorEvent.getId())
                     .setHubId(sensorEvent.getHubId())
-                    .setTimestamp(sensorEvent.getTimestamp())
+                    .setTimestamp(timestampToInstant(sensorEvent.getTimestamp()))
                     .setPayload(specificAvroEvent)
                     .build();
             log.info("Запись сообщения {} в топик {}...", avroEvent, topic);
@@ -43,5 +45,9 @@ public abstract class AbstractSensorEventHandler<T extends SpecificRecordBase> i
         }
     }
 
-    public abstract T mapToSensorEventAvro(AbstractSensorEvent sensorEvent);
+    public abstract T mapToSensorEventAvro(SensorEventProto sensorEvent);
+
+    private Instant timestampToInstant(com.google.protobuf.Timestamp timestamp) {
+        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+    }
 }
