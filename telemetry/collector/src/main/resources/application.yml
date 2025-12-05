@@ -8,6 +8,10 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+grpc:
+  server:
+    port: 9090
+
 kafka:
   topic:
     hub: "telemetry.hubs.v1"
