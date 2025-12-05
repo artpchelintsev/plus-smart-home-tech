@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 @Slf4j
 @Component
@@ -28,8 +29,10 @@ public class HubEventProcessor implements Runnable {
     private final ScenarioService scenarioService;
 
     public HubEventProcessor(KafkaConfig config, ScenarioService scenarioService) {
-        final KafkaConfig.ConsumerConfig consumerConfig = config.getConsumers().get(this.getClass().getSimpleName());
-        this.consumer = new KafkaConsumer<>(consumerConfig.getProperties());
+        final KafkaConfig.ConsumerConfig consumerConfig = config.getConsumers().get("HubEventProcessor");
+        final Properties props = config.getConsumerProperties("HubEventProcessor");
+
+        this.consumer = new KafkaConsumer<>(props);
         this.topics = consumerConfig.getTopics();
         this.pollTimeout = consumerConfig.getPollTimeout();
         this.scenarioService = scenarioService;

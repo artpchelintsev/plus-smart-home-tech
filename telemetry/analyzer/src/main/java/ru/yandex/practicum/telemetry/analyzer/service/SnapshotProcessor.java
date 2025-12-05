@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 @Slf4j
 @Component
@@ -30,8 +31,10 @@ public class SnapshotProcessor {
     private final GrpcClientService grpcClientService;
 
     public SnapshotProcessor(KafkaConfig config, SnapshotAnalyzer snapshotAnalyzer, GrpcClientService grpcClientService) {
-        final KafkaConfig.ConsumerConfig consumerConfig = config.getConsumers().get(this.getClass().getSimpleName());
-        this.consumer = new KafkaConsumer<>(consumerConfig.getProperties());
+        final KafkaConfig.ConsumerConfig consumerConfig = config.getConsumers().get("SnapshotProcessor");
+        final Properties props = config.getConsumerProperties("SnapshotProcessor");
+
+        this.consumer = new KafkaConsumer<>(props);
         this.topics = consumerConfig.getTopics();
         this.pollTimeout = consumerConfig.getPollTimeout();
         this.snapshotAnalyzer = snapshotAnalyzer;
