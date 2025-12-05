@@ -29,7 +29,7 @@ public class HubEventProcessor implements Runnable {
     private final ScenarioService scenarioService;
 
     public HubEventProcessor(KafkaConfig config, ScenarioService scenarioService) {
-        final KafkaConfig.ConsumerConfig consumerConfig = config.getConsumers().get("HubEventProcessor");
+        final KafkaConfig.ConsumerConfig consumerConfig = config.getConsumerConfig("HubEventProcessor");
         final Properties props = config.getConsumerProperties("HubEventProcessor");
 
         this.consumer = new KafkaConsumer<>(props);

@@ -5,10 +5,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 @Data
 @Component
@@ -17,17 +17,15 @@ public class KafkaConfig {
     private Map<String, String> commonProperties;
     private List<ConsumerConfig> consumers;
 
-    // Этот метод вызывается после того, как Spring установит все свойства
-    public Map<String, ConsumerConfig> getConsumers() {
+    // Метод для получения консьюмера по типу
+    public ConsumerConfig getConsumerConfig(String type) {
         if (consumers == null) {
-            return new HashMap<>();
+            return null;
         }
-
-        Map<String, ConsumerConfig> result = new HashMap<>();
-        for (ConsumerConfig config : consumers) {
-            result.put(config.getType(), config);
-        }
-        return result;
+        return consumers.stream()
+                .filter(c -> type.equals(c.getType()))
+                .findFirst()
+                .orElse(null);
     }
 
     // Метод для получения Properties с объединенными свойствами
@@ -40,12 +38,21 @@ public class KafkaConfig {
         }
 
         // Добавляем специфичные свойства консьюмера
-        ConsumerConfig config = getConsumers().get(consumerType);
+        ConsumerConfig config = getConsumerConfig(consumerType);
         if (config != null && config.getProperties() != null) {
             props.putAll(config.getProperties());
         }
 
         return props;
+    }
+
+    // Для обратной совместимости (если где-то используется)
+    public Map<String, ConsumerConfig> getConsumers() {
+        if (consumers == null) {
+            return Map.of();
+        }
+        return consumers.stream()
+                .collect(Collectors.toMap(ConsumerConfig::getType, c -> c));
     }
 
     @Data
