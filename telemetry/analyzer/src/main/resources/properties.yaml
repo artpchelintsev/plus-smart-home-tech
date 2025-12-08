@@ -4,34 +4,31 @@ spring:
       ddl-auto: none
     properties:
       hibernate:
-        format_sql: TRUE
+        format_sql: true
         jdbc:
           time_zone: UTC
     show-sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
-
   sql:
     init:
       mode: always
-
   datasource:
-    driverClassName: org.postgresql.Driver
+    driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/analyzer
     username: db
-    password: db
+    password: 12345
 
 logging:
   level:
     ru.yandex.practicum.telemetry: TRACE
-    org:
-      springframework: ERROR
-      springframework.cloud.netflix.eureka: INFO
-      apache.kafka: WARN
+    org.springframework: ERROR
+    org.springframework.cloud.netflix.eureka: INFO
+    apache.kafka: WARN
 
 grpc:
   client:
     hub-router:
-      address: 'static://localhost:59090'
+      address: static://localhost:59090
       enableKeepAlive: true
       keepAliveWithoutCalls: true
       negotiationType: plaintext
@@ -40,24 +37,22 @@ analyzer:
   kafka:
     common-properties:
       bootstrap.servers: localhost:9092
+      enable.auto.commit: false
+      auto.offset.reset: latest
     consumers:
       - type: SnapshotProcessor
         topics:
           - telemetry.snapshots.v1
-        poll-timeout: 1s
+        poll-timeout: 500ms
         properties:
           group.id: telemetry.analyzer.snapshot
           key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
           value.deserializer: ru.yandex.practicum.kafka.deserializer.SensorsSnapshotDeserializer
-          enable.auto.commit: false
-          auto.offset.reset: latest
       - type: HubEventProcessor
         topics:
           - telemetry.hubs.v1
-        poll-timeout: 1s
+        poll-timeout: 2000ms
         properties:
           group.id: telemetry.analyzer.hub
           key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
           value.deserializer: ru.yandex.practicum.kafka.deserializer.HubEventDeserializer
-          enable.auto.commit: false
-          auto.offset.reset: latest
