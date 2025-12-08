@@ -31,7 +31,7 @@ public class SnapshotProcessor {
     private final GrpcClientService grpcClientService;
 
     public SnapshotProcessor(KafkaConfig config, SnapshotAnalyzer snapshotAnalyzer, GrpcClientService grpcClientService) {
-        final KafkaConfig.ConsumerConfig consumerConfig = config.getConsumerConfig("SnapshotProcessor");
+        final KafkaConfig.ConsumerConfig consumerConfig = config.getConsumers().get("SnapshotProcessor");
         final Properties props = config.getConsumerProperties("SnapshotProcessor");
 
         this.consumer = new KafkaConsumer<>(props);

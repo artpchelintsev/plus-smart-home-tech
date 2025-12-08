@@ -39,23 +39,25 @@ grpc:
 analyzer:
   kafka:
     common-properties:
-      "bootstrap.servers": "localhost:9092"
-      "key.deserializer": "org.apache.kafka.common.serialization.StringDeserializer"
-      "enable.auto.commit": false
+      bootstrap.servers: localhost:9092
     consumers:
       - type: SnapshotProcessor
-        properties:
-          "value.deserializer": "ru.yandex.practicum.kafka.deserializer.SensorsSnapshotDeserializer"
-          "group.id": "telemetry.analyzer.snapshot"
         topics:
-          - "telemetry.snapshots.v1"
-        poll-timeout: 500ms
+          - telemetry.snapshots.v1
+        poll-timeout: 1s
+        properties:
+          group.id: telemetry.analyzer.snapshot
+          key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value.deserializer: ru.yandex.practicum.kafka.deserializer.SensorsSnapshotDeserializer
+          enable.auto.commit: false
+          auto.offset.reset: latest
       - type: HubEventProcessor
-        properties:
-          "value.deserializer": "ru.yandex.practicum.kafka.deserializer.HubEventDeserializer"
-          "group.id": "telemetry.analyzer.hub"
         topics:
-          - "telemetry.hubs.v1"
-        # поток событий от хабов будет невысокой интенсивности, поэтому можем увеличить таймаут ожидания и
-        # повысить пропускную способность
-        poll-timeout: 2000ms
+          - telemetry.hubs.v1
+        poll-timeout: 1s
+        properties:
+          group.id: telemetry.analyzer.hub
+          key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value.deserializer: ru.yandex.practicum.kafka.deserializer.HubEventDeserializer
+          enable.auto.commit: false
+          auto.offset.reset: latest
