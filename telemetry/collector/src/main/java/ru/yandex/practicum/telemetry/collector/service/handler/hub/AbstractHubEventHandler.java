@@ -1,31 +1,31 @@
 package ru.yandex.practicum.telemetry.collector.service.handler.hub;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import ru.yandex.practicum.grpc.telemetry.event.HubEventProto;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.telemetry.collector.config.KafkaConfig;
-import ru.yandex.practicum.telemetry.collector.model.hub.AbstractHubEvent;
 
+import java.time.Instant;
+
+@Slf4j
 @RequiredArgsConstructor
 public abstract class AbstractHubEventHandler<T extends SpecificRecordBase> implements HubEventHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(AbstractHubEventHandler.class);
 
     private final KafkaConfig kafkaConfig;
     private final String topic;
 
     @Override
-    public void handle(AbstractHubEvent hubEvent) {
+    public void handle(HubEventProto hubEvent) {
         try {
             Producer<String, SpecificRecordBase> producer = kafkaConfig.getProducer();
             T specificAvroEvent = mapToHubEventAvro(hubEvent);
             HubEventAvro avroEvent = HubEventAvro.newBuilder()
                     .setHubId(hubEvent.getHubId())
-                    .setTimestamp(hubEvent.getTimestamp())
+                    .setTimestamp(timestampToInstant(hubEvent.getTimestamp()))
                     .setPayload(specificAvroEvent)
                     .build();
             log.info("Запись сообщения {} в топик {}...", avroEvent, topic);
@@ -39,11 +39,14 @@ public abstract class AbstractHubEventHandler<T extends SpecificRecordBase> impl
                             topic, metadata.partition(), metadata.offset());
                 }
             });
-            producer.flush();
         } catch (Exception e) {
             log.error("Ошибка обработки события.", e);
         }
     }
 
-    public abstract T mapToHubEventAvro(AbstractHubEvent hubEvent);
+    public abstract T mapToHubEventAvro(HubEventProto hubEvent);
+
+    private Instant timestampToInstant(com.google.protobuf.Timestamp timestamp) {
+        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+    }
 }
