@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: collector
+  jackson:
+    time-zone: UTC
+
+logging:
+  level:
+    root: INFO
+    ru.yandex.practicum: DEBUG
+    org.apache.kafka.*: INFO
+
+kafka:
+  producer:
+    bootstrap-servers: localhost:9092
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: ru.yandex.practicum.kafka.serializer.GeneralAvroSerializer
+    acks: all
+    retries: 3
+    max-in-flight-requests-per-connection: 1
+    linger-ms: 10
+    batch-size: 16384
+  topic:
+    hub: telemetry.hubs.v1
+    sensor: telemetry.sensors.v1
+
+grpc:
+  client:
+    echo:
+      address: static://127.0.0.1:9090
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext
+  server:
+    port: 59091

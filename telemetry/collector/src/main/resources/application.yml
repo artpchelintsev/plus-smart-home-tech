@@ -1,36 +1,19 @@
-server:
-  port: 8080
-
 spring:
   application:
-    name: telemetry-collector
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
+    name: collector
+  config:
+    import: "configserver:"
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        useRandomPolicy: true
+        max-interval: 6000
+      discovery:
+        enabled: true
+        serviceId: config-server
 
-grpc:
-  server:
-    port: 9090
-
-kafka:
-  topic:
-    hub: "telemetry.hubs.v1"
-    sensor: "telemetry.sensors.v1"
-  producer:
-    bootstrap-servers: localhost:9092
-    key-serializer: org.apache.kafka.common.serialization.StringSerializer
-    value-serializer: ru.yandex.practicum.kafka.serializer.GeneralAvroSerializer
-    acks: all
-    retries: 3
-    max-in-flight-requests-per-connection: 5
-    linger-ms: 10
-    batch-size: 16384
-    buffer-memory: 33554432
-
-logging:
-  level:
-    ru.yandex.practicum.telemetry: INFO
-    ru.yandex.practicum.kafka.serializer: DEBUG
-    org.apache.kafka: WARN
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname:localhost}:${eureka.instance.port:8761}/eureka/
