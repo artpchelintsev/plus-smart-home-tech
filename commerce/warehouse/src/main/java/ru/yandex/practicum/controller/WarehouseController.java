@@ -9,8 +9,13 @@ import ru.yandex.practicum.dto.BookedProductsDto;
 import ru.yandex.practicum.dto.ShoppingCartDto;
 import ru.yandex.practicum.feignclient.WarehouseFeignClient;
 import ru.yandex.practicum.request.AddProductToWarehouseRequest;
+import ru.yandex.practicum.request.AssemblyProductsForOrderRequest;
 import ru.yandex.practicum.request.NewProductInWarehouseRequest;
+import ru.yandex.practicum.request.ShippedToDeliveryRequest;
 import ru.yandex.practicum.service.WarehouseService;
+
+import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -28,10 +33,11 @@ public class WarehouseController implements WarehouseFeignClient {
     }
 
     @Override
-    public void checkProductAvailability(ShoppingCartDto cart) {
+    public BookedProductsDto checkProductAvailability(ShoppingCartDto cart) {
         log.info("Проверка количества товаров на складе для корзины: {}", cart);
         BookedProductsDto dto = service.checkProductAvailability(cart);
         log.info("Количество товаров на складе для корзины: {} проверено", dto);
+        return dto;
     }
 
     @Override
@@ -47,5 +53,27 @@ public class WarehouseController implements WarehouseFeignClient {
         AddressDto address = service.getWarehouseAddress();
         log.info("Получен адрес склада: {}", address);
         return address;
+    }
+
+    @Override
+    public void shippedToDelivery(ShippedToDeliveryRequest request) {
+        log.info("Передача товаров в доставку: {}", request);
+        service.shippedToDelivery(request);
+        log.info("Товары переданы в доставку");
+    }
+
+    @Override
+    public BookedProductsDto assemblyProductsForOrder(AssemblyProductsForOrderRequest request) {
+        log.info("Сбор товаров к заказу для подготовки к отправке: {}", request);
+        BookedProductsDto products = service.assemblyProductsForOrder(request);
+        log.info("Товары собраны и готовы к отправке.");
+        return products;
+    }
+
+    @Override
+    public void acceptReturn(Map<UUID, Long> products) {
+        log.info("Возврат товаров на склад: {}", products);
+        service.acceptReturn(products);
+        log.info("Товары возвращены на склад.");
     }
 }
