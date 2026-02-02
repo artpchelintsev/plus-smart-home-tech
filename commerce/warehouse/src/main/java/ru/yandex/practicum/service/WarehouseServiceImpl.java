@@ -1,22 +1,30 @@
 package ru.yandex.practicum.service;
 
+import jakarta.validation.Valid;
+import jakarta.ws.rs.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestBody;
 import ru.yandex.practicum.dto.AddressDto;
 import ru.yandex.practicum.dto.BookedProductsDto;
 import ru.yandex.practicum.dto.ShoppingCartDto;
-import ru.yandex.practicum.exceptions.ProductNotFoundException;
-import ru.yandex.practicum.model.Address;
-import ru.yandex.practicum.model.WarehouseProduct;
 import ru.yandex.practicum.exceptions.NoSpecifiedProductInWarehouseException;
 import ru.yandex.practicum.exceptions.ProductInShoppingCartLowQuantityInWarehouseException;
+import ru.yandex.practicum.exceptions.ProductNotFoundException;
+import ru.yandex.practicum.exceptions.SpecifiedProductAlreadyInWarehouseException;
 import ru.yandex.practicum.mapper.WarehouseMapper;
+import ru.yandex.practicum.model.Address;
+import ru.yandex.practicum.model.OrderBooking;
+import ru.yandex.practicum.model.WarehouseProduct;
+import ru.yandex.practicum.repository.BookingRepository;
 import ru.yandex.practicum.repository.WarehouseRepository;
 import ru.yandex.practicum.request.AddProductToWarehouseRequest;
+import ru.yandex.practicum.request.AssemblyProductsForOrderRequest;
 import ru.yandex.practicum.request.NewProductInWarehouseRequest;
-import ru.yandex.practicum.exceptions.SpecifiedProductAlreadyInWarehouseException;
+import ru.yandex.practicum.request.ShippedToDeliveryRequest;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -30,6 +38,7 @@ public class WarehouseServiceImpl implements WarehouseService {
 
     private final WarehouseRepository repository;
     private final WarehouseMapper mapper;
+    private final BookingRepository bookingRepository;
 
     @Override
     @Transactional
@@ -140,6 +149,100 @@ public class WarehouseServiceImpl implements WarehouseService {
                 .flat(address)
                 .build();
         log.info("Актуальный адрес склада: {}", dto);
+        return dto;
+    }
+
+    @Override
+    public void shippedToDelivery(ShippedToDeliveryRequest request) {
+        log.info("Передача товаров в доставку: {}", request);
+
+        UUID orderId = request.getOrderId();
+
+        OrderBooking booking = bookingRepository.findBookingByOrderId(orderId)
+                .orElseThrow(() -> new NotFoundException("Бронь не найдена."));
+
+        booking.setDeliveryId(request.getDeliveryId());
+        bookingRepository.save(booking);
+
+        log.info("Товары переданы в доставку.");
+    }
+
+
+    @Override
+    public void acceptReturn(@RequestBody Map<UUID, Long> products) {
+        log.info("Возврат товаров на склад: {}", products);
+
+        products.forEach((key, value) -> {
+            AddProductToWarehouseRequest request = new AddProductToWarehouseRequest();
+            request.setProductId(key);
+            request.setQuantity(Math.toIntExact(value));
+            takeProductToWarehouse(request);
+        });
+
+        log.info("Товары приняты на склад!");
+    }
+
+    @Override
+    @Transactional
+    public BookedProductsDto assemblyProductsForOrder(@RequestBody @Valid AssemblyProductsForOrderRequest request) {
+        log.info("Собираем товары к заказу для подготовки к отправке: {}", request);
+
+        double totalWeight = 0.0;
+        double totalVolume = 0.0;
+        boolean fragile = false;
+
+        UUID orderId = request.getOrderId();
+
+        Map<UUID, Long> productsForBooking = request.getProducts();
+        Map<UUID, WarehouseProduct> products = repository.findAllById(productsForBooking.keySet())
+                .stream()
+                .collect(Collectors.toMap(WarehouseProduct::getProductId, Function.identity()));
+
+        for (Map.Entry<UUID, Long> cartProduct : productsForBooking.entrySet()) {
+            WarehouseProduct product = products.get(cartProduct.getKey());
+
+            if (product == null) {
+                log.error("Товар с id {} не найден на складе", cartProduct.getKey());
+                throw new NoSpecifiedProductInWarehouseException("Не найден на складе товар с id ", cartProduct.getKey());
+
+            }
+
+            if (cartProduct.getValue() > product.getQuantity()) {
+                log.info("Товара с id: {}, на складе меньше, чем в заказе!", product.getProductId());
+                throw new ProductInShoppingCartLowQuantityInWarehouseException("Товара с id %s, на складе меньше, чем в заказе.", product.getProductId());
+            }
+            product.setQuantity(product.getQuantity() - cartProduct.getValue());
+
+            double height = product.getDimension().getHeight();
+            double depth = product.getDimension().getDepth();
+            double width = product.getDimension().getWidth();
+
+            double productVolume = height * depth * width;
+            double quantity = cartProduct.getValue();
+
+            totalVolume = productVolume * quantity;
+            totalWeight = product.getWeight() * quantity;
+
+            if (Boolean.TRUE.equals(product.getFragile())) {
+                fragile = true;
+            }
+        }
+
+        repository.saveAll(products.values());
+
+        BookedProductsDto dto = BookedProductsDto.builder()
+                .deliveryVolume(totalVolume)
+                .deliveryWeight(totalWeight)
+                .fragile(fragile)
+                .build();
+
+        OrderBooking booking = OrderBooking.builder().build();
+        booking.setOrderId(orderId);
+        booking.setProducts(productsForBooking);
+
+        bookingRepository.save(booking);
+
+        log.info("Товары собраны и готовы к отправке.");
         return dto;
     }
 }
